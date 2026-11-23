@@ -5,6 +5,8 @@ description: Update the "claude-plugin" Google Sheet in the user's Google Drive 
 
 # plugin-ledger sync
 
+This skill is for the **Google Drive** destination. If `~/.claude/plugin-ledger/config.json` says `"destination": "local"`, the session-start hook already wrote the local file. Just run the script (see `commitCommand` below, without `--commit`) and report its path. If there's no config and no `synced.json`, use `plugin-ledger:setup` first.
+
 Pending changes are in `~/.claude/plugin-ledger/pending.json`:
 
 ```json

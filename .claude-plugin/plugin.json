@@ -1,7 +1,7 @@
 {
   "name": "plugin-ledger",
-  "description": "Logs every plugin, skill and MCP server installed in any coding agent (Claude Code, Antigravity, Gemini CLI, opencode, Copilot, Codex) to a Google Sheet, including removals.",
-  "version": "1.0.0",
+  "description": "Logs every plugin, skill and MCP server installed in any coding agent (Claude Code, Antigravity, Gemini CLI, opencode, Copilot, Codex) to a local Excel/CSV/JSON file or a Google Sheet, including removals.",
+  "version": "1.1.0",
   "license": "MIT",
   "keywords": ["inventory", "google-sheets", "plugins", "skills"]
 }

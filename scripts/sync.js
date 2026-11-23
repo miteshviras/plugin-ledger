@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // plugin-ledger: on SessionStart, diff installed plugins/skills against the last sync and ask Claude to update the Drive sheet.
-// Usage: sync.js            normal run (hook)
+// Usage: sync.js            normal run (hook): local mode writes the file itself, Drive mode hands off to Claude
+//        sync.js --configure --destination local|drive [--format xlsx|csv|json] [--path <folder>]
 //        sync.js --dry-run  print what changed, write nothing
 //        sync.js --commit   mark pending.json as written to the sheet
 //        sync.js --csv      print pending additions as CSV (for creating the sheet)
@@ -185,10 +186,95 @@ function collect(home) {
 const HEADER = ['Plugin name', 'Type', 'Link (marketplace)', 'Installed date', 'Description', 'Use case', 'Status', 'Removed date', 'Agent'];
 // Leading = + - @ would be parsed as a formula on import, so prefix a space.
 const cell = v => { const s = String(v ?? '').replace(/^([=+\-@])/, ' $1'); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+// One row as the sheet's 9 columns. Rows without a status (pending additions) are Installed.
+const columns = r => [r.name, r.type, r.link, (r.installedAt || '').slice(0, 10), r.description, r.useCase, r.status || 'Installed', (r.removedAt || '').slice(0, 10), r.agent];
 function toCsv(rows) {
-  const lines = rows.map(r => [r.name, r.type, r.link, (r.installedAt || '').slice(0, 10), r.description, r.useCase, 'Installed', '', r.agent].map(cell).join(','));
-  return [HEADER.join(','), ...lines].join('\r\n') + '\r\n';
+  return [HEADER.join(','), ...rows.map(r => columns(r).map(cell).join(','))].join('\r\n') + '\r\n';
 }
+
+const toJson = rows => JSON.stringify(rows.map(r => Object.fromEntries(HEADER.map((h, i) => [h, columns(r)[i] ?? '']))), null, 2) + '\n';
+
+// --- .xlsx without dependencies: a zip of a few XML parts, styled like a table. ---
+const CRC = Array.from({ length: 256 }, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+const crc32 = buf => { let c = ~0; for (const b of buf) c = CRC[(c ^ b) & 0xff] ^ (c >>> 8); return ~c >>> 0; };
+
+function zip(files) {
+  const zlib = require('zlib');
+  const locals = [], centrals = [];
+  let offset = 0;
+  for (const [name, text] of files) {
+    const data = Buffer.from(text, 'utf8'), comp = zlib.deflateRawSync(data), nm = Buffer.from(name);
+    const h = Buffer.alloc(30); // local file header
+    h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(8, 8); h.writeUInt16LE(33, 12);
+    h.writeUInt32LE(crc32(data), 14); h.writeUInt32LE(comp.length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(nm.length, 26);
+    const c = Buffer.alloc(46); // central directory entry
+    c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(8, 10); c.writeUInt16LE(33, 14);
+    c.writeUInt32LE(crc32(data), 16); c.writeUInt32LE(comp.length, 20); c.writeUInt32LE(data.length, 24); c.writeUInt16LE(nm.length, 28); c.writeUInt32LE(offset, 42);
+    locals.push(h, nm, comp); centrals.push(c, nm);
+    offset += h.length + nm.length + comp.length;
+  }
+  const cd = Buffer.concat(centrals), end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(files.length, 8); end.writeUInt16LE(files.length, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, cd, end]);
+}
+
+// XML-escape and drop control characters XML 1.0 forbids.
+const xml = s => String(s ?? '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const WIDTHS = [36, 9, 40, 13, 55, 65, 12, 13, 20];
+
+function toXlsx(rows) {
+  const last = rows.length + 1, col = i => String.fromCharCode(65 + i);
+  // Style ids (cellXfs below): 1 header, 2/3 banded body, 4 Installed, 5 Removed.
+  const c = (ref, v, s) => `<c r="${ref}" t="inlineStr" s="${s}"><is><t xml:space="preserve">${xml(v)}</t></is></c>`;
+  const body = rows.map((r, i) => {
+    const n = i + 2, band = i % 2 ? 3 : 2;
+    return `<row r="${n}">${columns(r).map((v, j) => c(col(j) + n, v, j === 6 ? (v === 'Removed' ? 5 : 4) : band)).join('')}</row>`;
+  }).join('');
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
+    + `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+    + `<cols>${WIDTHS.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>`
+    + `<sheetData><row r="1" ht="24" customHeight="1">${HEADER.map((h, j) => c(col(j) + 1, h, 1)).join('')}</row>${body}</sheetData>`
+    + `<autoFilter ref="A1:I${last}"/></worksheet>`;
+  const fill = rgb => `<fill><patternFill patternType="solid"><fgColor rgb="FF${rgb}"/></patternFill></fill>`;
+  const border = '<border><left style="thin"><color rgb="FFD0D7E2"/></left><right style="thin"><color rgb="FFD0D7E2"/></right><top style="thin"><color rgb="FFD0D7E2"/></top><bottom style="thin"><color rgb="FFD0D7E2"/></bottom><diagonal/></border>';
+  const xf = (font, fill, align) => `<xf numFmtId="0" fontId="${font}" fillId="${fill}" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment ${align}/></xf>`;
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
+    + `<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>`
+    + `<font><b/><sz val="11"/><color rgb="FF137333"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFA50E0E"/><name val="Calibri"/></font></fonts>`
+    + `<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${fill('1F3A5F')}${fill('EEF3F8')}${fill('D9F2E3')}${fill('FCE1E1')}</fills>`
+    + `<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${border}</borders>`
+    + `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`
+    + `<cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>${xf(1, 2, 'vertical="center" wrapText="1"')}${xf(0, 0, 'vertical="top" wrapText="1"')}${xf(0, 3, 'vertical="top" wrapText="1"')}${xf(2, 4, 'horizontal="center" vertical="top"')}${xf(3, 5, 'horizontal="center" vertical="top"')}</cellXfs>`
+    + `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  return zip([
+    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
+    ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${R}"><sheets><sheet name="Plugins" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Plugins!$A$1:$I$${last}</definedName></definedNames></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/worksheets/sheet1.xml', sheet],
+    ['xl/styles.xml', styles],
+  ]);
+}
+
+const RENDER = { xlsx: toXlsx, csv: toCsv, json: toJson };
+
+// Fold the current scan into the full ledger: new rows Installed, missing ones Removed, reinstalls Installed again.
+function mergeLedger(ledger, rows, now) {
+  const byName = new Map(ledger.map(r => [r.name, r]));
+  const seen = new Set(rows.map(r => r.name));
+  let added = 0, removed = 0;
+  for (const r of rows) {
+    const old = byName.get(r.name);
+    if (!old) { ledger.push({ ...r, installedAt: r.installedAt || now, status: 'Installed', removedAt: '' }); added++; }
+    else if (old.status === 'Removed') { Object.assign(old, r, { installedAt: r.installedAt || now, status: 'Installed', removedAt: '' }); added++; }
+  }
+  for (const r of ledger) if (r.status === 'Installed' && !seen.has(r.name)) { r.status = 'Removed'; r.removedAt = now; removed++; }
+  return { added, removed };
+}
+
+const arg = k => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
+const expandHome = (p, home) => p.replace(/^~(?=$|[\\/])/, home);
 
 // What changed since the last sync: rows to add, names to mark removed.
 function diff(rows, synced) {
@@ -202,6 +288,50 @@ function main() {
   const syncedFile = path.join(dir, 'synced.json'); // names currently "Installed" in the sheet
   const pendingFile = path.join(dir, 'pending.json');
   const synced = readJson(syncedFile, []);
+  const configFile = path.join(dir, 'config.json');
+
+  if (process.argv.includes('--configure')) {
+    // The setup skill runs this with the user's answers.
+    const destination = arg('--destination'), format = arg('--format') || 'xlsx';
+    if (!['local', 'drive'].includes(destination)) throw new Error('--destination must be local or drive');
+    if (destination === 'local' && !RENDER[format]) throw new Error('--format must be xlsx, csv or json');
+    const folder = path.resolve(expandHome(arg('--path') || dir, home));
+    const cfg = destination === 'drive' ? { destination } : { destination, format, path: folder };
+    fs.mkdirSync(dir, { recursive: true });
+    if (destination === 'local') fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2));
+    return console.log(`plugin-ledger: saved ${JSON.stringify(cfg)}`);
+  }
+
+  const cfg = readJson(configFile, null);
+  if (!cfg && !fs.existsSync(syncedFile)) {
+    // First run: nothing chosen yet. (A synced.json without config means an existing Google Drive setup.)
+    if (process.argv.includes('--dry-run')) return console.log('plugin-ledger: not set up yet');
+    return console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext:
+      `plugin-ledger is installed but not set up. Before answering the user's first message, use the plugin-ledger:setup skill to ask where to keep the ledger and in which format.` } }));
+  }
+
+  if (cfg?.destination === 'local') {
+    // Local file: the hook does everything itself; no connector, no tokens unless something changed.
+    const ledgerFile = path.join(dir, 'ledger.json');
+    const out = path.join(cfg.path, `plugin-ledger.${cfg.format}`);
+    const ledger = readJson(ledgerFile, []);
+    const { added, removed } = mergeLedger(ledger, collect(home), new Date().toISOString());
+    if (process.argv.includes('--dry-run')) return console.log(JSON.stringify({ added, removed, out }, null, 2));
+    if (!added && !removed && fs.existsSync(out)) return;
+    try {
+      fs.mkdirSync(cfg.path, { recursive: true });
+      fs.writeFileSync(out + '.tmp', RENDER[cfg.format](ledger));
+      fs.renameSync(out + '.tmp', out);
+    } catch (e) {
+      // Usually the file is open in Excel. ledger.json is left unchanged, so the next session retries.
+      fs.rmSync(out + '.tmp', { force: true });
+      return console.error(`plugin-ledger: could not write ${out} (${e.code || e.message}); close it if it's open, it will retry next session`);
+    }
+    fs.writeFileSync(ledgerFile, JSON.stringify(ledger, null, 2));
+    return console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext:
+      `plugin-ledger: updated ${out} (${added} added, ${removed} marked removed). Mention it in one line only if the user asks about plugins.` } }));
+  }
 
   if (process.argv.includes('--csv')) {
     // Pending additions as a CSV that Drive converts into the claude-plugin sheet on upload.
@@ -288,6 +418,35 @@ function selfTest() {
   assert.deepStrictEqual(d.removed, ['gone@m']);
   assert.strictEqual(toCsv([{ name: 'a', description: 'x, "y"\nz', useCase: '=1', agent: 'Codex' }]).split('\r\n')[1], 'a,,,,"x, ""y""\nz", =1,Installed,,Codex');
   assert.strictEqual(marketplaceLink({ url: 'https://x.com/a/b.git' }), 'https://x.com/a/b');
+
+  // Ledger: add, remove, reinstall.
+  const L = [];
+  assert.deepStrictEqual(mergeLedger(L, rows.slice(0, 2), 'T1'), { added: 2, removed: 0 });
+  assert.deepStrictEqual(mergeLedger(L, rows.slice(0, 1), 'T2'), { added: 0, removed: 1 });
+  assert.strictEqual(L[1].status, 'Removed'); assert.strictEqual(L[1].removedAt, 'T2');
+  assert.deepStrictEqual(mergeLedger(L, rows.slice(0, 1), 'T3'), { added: 0, removed: 0 });
+  assert.deepStrictEqual(mergeLedger(L, rows.slice(0, 2), 'T4'), { added: 1, removed: 0 });
+  assert.strictEqual(L[1].status, 'Installed'); assert.strictEqual(L[1].removedAt, '');
+  L[1].status = 'Removed'; L[1].removedAt = '2026-05-06T00:00:00Z';
+
+  assert.strictEqual(JSON.parse(toJson(L))[1]['Removed date'], '2026-05-06');
+  assert.strictEqual(toCsv(L).split('\r\n').length, 4);
+
+  // xlsx: unzip every part, check its CRC, and check the sheet holds every row with the right status styles.
+  const zlib = require('zlib'), buf = toXlsx(L), parts = {};
+  for (let o = 0; buf.readUInt32LE(o) === 0x04034b50;) {
+    const size = buf.readUInt32LE(o + 18), nl = buf.readUInt16LE(o + 26), name = buf.toString('utf8', o + 30, o + 30 + nl);
+    const data = zlib.inflateRawSync(buf.subarray(o + 30 + nl, o + 30 + nl + size));
+    assert.strictEqual(crc32(data), buf.readUInt32LE(o + 14), `crc ${name}`);
+    parts[name] = data.toString('utf8');
+    o += 30 + nl + size;
+  }
+  assert.deepStrictEqual(Object.keys(parts).sort(), ['[Content_Types].xml', '_rels/.rels', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/workbook.xml', 'xl/worksheets/sheet1.xml']);
+  const s1 = parts['xl/worksheets/sheet1.xml'];
+  assert.strictEqual((s1.match(/<row /g) || []).length, 3);
+  assert.ok(s1.includes('<autoFilter ref="A1:I3"/>') && s1.includes('state="frozen"'));
+  assert.ok(s1.includes('r="G2" t="inlineStr" s="4"') && s1.includes('r="G3" t="inlineStr" s="5"'), 'Installed/Removed styles');
+  assert.ok(toXlsx([{ name: 'a & <b>\x07' }]).length > 0 && xml('a & <b>\x07') === 'a &amp; &lt;b&gt;');
   fs.rmSync(home, { recursive: true, force: true });
   console.log('self-test passed');
 }

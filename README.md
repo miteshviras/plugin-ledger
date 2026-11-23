@@ -2,11 +2,21 @@
 
 **Never forget what an AI plugin is for.**
 
-You install a plugin or skill, use it once, and a month later you have no idea what it does or where it came from. plugin-ledger keeps a Google Sheet called **`claude-plugin`** in your Google Drive. It lists every plugin, skill and MCP server installed in **any coding agent on your machine**: Claude Code, Antigravity, Gemini CLI, opencode, GitHub Copilot and Codex. Each row has a link, install date, description and use case. When you uninstall something, its row is marked **Removed** with the date instead of being deleted, so you keep the history.
+You install a plugin or skill, use it once, and a month later you have no idea what it does or where it came from. plugin-ledger keeps a ledger of every plugin, skill and MCP server installed in **any coding agent on your machine**: Claude Code, Antigravity, Gemini CLI, opencode, GitHub Copilot and Codex. Each row has a link, install date, description and use case. When you uninstall something, its row is marked **Removed** with the date instead of being deleted, so you keep the history.
+
+**You choose where it lives** the first time it runs:
+
+| Destination | Formats | Needs | Updates |
+|---|---|---|---|
+| **Local: Claude folder** (`~/.claude/plugin-ledger/`) | Excel `.xlsx`, `.csv`, `.json` | Nothing | At every session start, by the hook itself, using no tokens |
+| **Local: a folder you choose** | Excel `.xlsx`, `.csv`, `.json` | Nothing | Same as above |
+| **Google Drive** | Google Sheet (`claude-plugin`) | Google Drive and Google Sheets connectors | In Claude's first turn after a change |
+
+The Excel file is styled like a table: dark frozen header, filters on every column, banded rows, wrapped text, and green **Installed** / red **Removed**. Google Drive only supports a Google Sheet, because the Drive connector can't update a CSV or JSON file in place.
 
 ---
 
-## What the sheet looks like
+## What the ledger looks like
 
 | Plugin name | Type | Link (marketplace) | Installed date | Description | Use case | Status | Removed date | Agent |
 |---|---|---|---|---|---|---|---|---|
@@ -23,14 +33,22 @@ You install a plugin or skill, use it once, and a month later you have no idea w
 
 ## Requirements
 
+**Always:**
+
 | Requirement | Why it's needed |
 |---|---|
-| **Claude Code**, signed in with your claude.ai account | Runs the plugin. The sync happens inside a Claude Code session. |
-| **Node.js 18 or newer** on your `PATH` | The session-start hook runs `node scripts/sync.js`. No npm packages are needed. |
-| **Google Drive connector** | Creates the `claude-plugin` sheet the first time. |
-| **Google Sheets connector** | Adds new rows and marks removals in the existing sheet on every later sync. Drive alone can create a file but can't edit one. |
+| **Claude Code** | Runs the plugin's session-start hook and skills. |
+| **Node.js 18 or newer** on your `PATH` | The hook runs `node scripts/sync.js`. No npm packages are needed. |
 
-You don't need a Google Cloud project, API keys or an Apps Script. The connectors use the Google account you sign in with.
+**Only for the Google Drive destination:**
+
+| Requirement | Why it's needed |
+|---|---|
+| Claude Code signed in with your **claude.ai** account | Connectors come from claude.ai. |
+| **Google Drive connector** | Creates the `claude-plugin` sheet the first time. |
+| **Google Sheets connector** | Adds rows, marks removals and applies the table style on later syncs. Drive alone can create a file but can't edit one. |
+
+Connect both with the **same Google account**: the Sheets connector can only open sheets that account can access. You don't need a Google Cloud project, API keys or an Apps Script.
 
 Other agents (Antigravity, Codex, etc.) don't need anything installed. plugin-ledger just reads their config folders. An agent that isn't installed is skipped.
 
@@ -38,13 +56,7 @@ Other agents (Antigravity, Codex, etc.) don't need anything installed. plugin-le
 
 ## Setup
 
-### 1. Connect Google Drive and Google Sheets
-
-1. Open **claude.ai → Settings → Connectors**.
-2. Connect **Google Drive** and **Google Sheets**, and sign in with the Google account that should own the sheet.
-3. In Claude Code, run `/mcp` and check that both connectors are listed and connected. If one isn't, enable it for Claude Code there.
-
-### 2. Install the plugin
+### 1. Install the plugin
 
 In Claude Code:
 
@@ -53,11 +65,32 @@ In Claude Code:
 /plugin install plugin-ledger@plugin-ledger
 ```
 
-To install from a local copy instead, use `/plugin marketplace add <path-to-this-folder>`.
+Type each command on its own in the message box. Or, from a terminal:
 
-### 3. Start a new session
+```
+claude plugin marketplace add miteshviras/plugin-ledger
+claude plugin install plugin-ledger@plugin-ledger
+```
 
-At the next session start, plugin-ledger finds everything already installed. Before answering your first message, Claude creates `claude-plugin` in your Drive and fills it in. After that, the sheet only changes when something is installed or removed.
+### 2. Start a new session and pick a destination
+
+At the next session start, Claude asks two questions before anything else:
+
+1. **Where?** Claude folder (recommended) · a folder you choose · Google Drive
+2. **Format?** Excel (recommended) · CSV · JSON (local only)
+
+It then writes the ledger with everything already installed and tells you where it is. From then on:
+
+- **Local:** the file is rewritten only when something is installed or removed.
+- **Google Drive:** Claude updates the sheet in its first turn after a change.
+
+Run `/plugin-ledger:setup` any time to change the destination or format.
+
+### 3. (Google Drive only) Connect Google
+
+1. Open **claude.ai → Settings → Connectors**.
+2. Connect **Google Drive** and **Google Sheets** with the same Google account.
+3. In Claude Code, run `/mcp` and check both are listed and connected.
 
 ---
 
@@ -83,33 +116,30 @@ At the next session start, plugin-ledger finds everything already installed. Bef
 session starts
    │
    ▼
-hook: node scripts/sync.js ── scans every agent ──► compares with ~/.claude/plugin-ledger/synced.json
+hook: node scripts/sync.js ── scans every agent
    │
-   ├─ nothing changed ──► exits silently (no tokens used)
+   ├─ not set up yet ──► Claude runs plugin-ledger:setup (asks where + format)
    │
-   └─ changes found ──► writes pending.json and tells Claude
-                           │
-                           ▼
-              Claude runs the plugin-ledger:sync skill
-              (before answering your first message)
-                           │
-             ┌─────────────┴─────────────┐
-       no sheet yet                 sheet exists
-   Drive: create from CSV     Sheets: append new rows,
-                              mark removed, restore reinstalls
-                           │
-                           ▼
-          only if every write succeeded: sync.js --commit
+   ├─ LOCAL ──► merges into ledger.json ──► rewrites plugin-ledger.xlsx/.csv/.json
+   │            (nothing changed: does nothing; no Claude, no tokens)
+   │
+   └─ GOOGLE DRIVE ──► compares with synced.json
+          ├─ nothing changed ──► exits silently
+          └─ changes ──► writes pending.json ──► Claude runs plugin-ledger:sync
+                 no sheet yet: Drive creates it from CSV
+                 sheet exists: Sheets appends rows, marks removals, applies the table style
+                 only if every write succeeded: sync.js --commit
 ```
 
-- **Nothing is lost.** If Google is unreachable or a connector is missing, Claude doesn't commit. The same changes are offered again at the next session start.
-- **The sheet updates in your first turn, not at the moment you install.** Hooks can't call connectors, so Claude does the update. Your first reply after an install or removal takes a little longer.
+- **Nothing is lost.** Local: if the file can't be written (for example it's open in Excel), the ledger isn't advanced and the next session retries. Drive: if Google is unreachable or a connector is missing, Claude doesn't commit, and the same changes are offered again next session.
+- **Local is instant and free.** The hook writes the file itself, with no Claude turn and no connector.
+- **Drive updates in your first turn, not at the moment you install.** Hooks can't call connectors, so Claude does the update.
 
 ---
 
 ## Privacy and security
 
-- **The sheet is private.** It's created in your own Drive, and plugin-ledger never shares it.
+- **Your ledger stays yours.** A local file stays on your machine. A Google Sheet is created in your own Drive, and plugin-ledger never shares it.
 - **No secrets are written.** MCP rows record only the server URL (without its query string) or its launch command. Environment variables, HTTP headers and arguments like `--api-key`, `--header` or `TOKEN=…` are dropped.
   - Secrets are spotted by name (key, token, secret, password, auth, header, cookie). A raw token passed as an unlabeled argument would still get through, so check the MCP rows once.
 - **Local paths may appear.** A local MCP server's command can include a path on your machine, such as `node C:/Users/you/project/index.js`.
@@ -122,17 +152,20 @@ hook: node scripts/sync.js ── scans every agent ──► compares with ~/.c
 
 | Command | What it does |
 |---|---|
-| `/plugin-ledger:sync` | Update the sheet now, without waiting for a new session |
+| `/plugin-ledger:setup` | Choose or change where the ledger is stored and its format |
+| `/plugin-ledger:sync` | Update the Google Sheet now (Drive destination), without waiting for a new session |
+| `node scripts/sync.js` | Local destination: update the file now |
+| `node scripts/sync.js --configure --destination local --format xlsx\|csv\|json [--path <folder>]` | Set the destination without asking (`--destination drive` for Google Drive) |
 | `node scripts/sync.js --dry-run` | Show what would be added or removed, and change nothing |
-| `node scripts/sync.js --test` | Run the self-test (fixtures for every agent, including a no-secrets check) |
-| `node scripts/sync.js --csv` | Print pending additions as CSV (used when creating the sheet) |
-| `node scripts/sync.js --commit` | Mark pending changes as written (Claude runs this after a successful sync) |
+| `node scripts/sync.js --test` | Run the self-test (every agent, no-secrets check, ledger history, xlsx structure) |
+| `node scripts/sync.js --csv` / `--commit` | Used by the Drive sync: export pending rows, mark them written |
 
-Local state is kept in `~/.claude/plugin-ledger/`:
-- `synced.json`: what the sheet currently lists as Installed.
-- `pending.json`: changes waiting to be written.
+State is kept in `~/.claude/plugin-ledger/`:
+- `config.json`: your destination, format and folder.
+- `ledger.json`: local destination's full history (every row, Installed or Removed). The output file is rebuilt from it.
+- `synced.json` and `pending.json`: Drive destination; what the sheet lists as Installed, and changes waiting to be written.
 
-Delete `synced.json` to resend everything. Existing rows are updated, not duplicated.
+To rebuild from scratch, delete `ledger.json` (local) or `synced.json` (Drive). Removal history is lost for local; Drive rows are updated, not duplicated.
 
 ---
 
@@ -142,6 +175,8 @@ Delete `synced.json` to resend everything. Existing rows are updated, not duplic
 |---|---|
 | Claude says the Google Sheets connector is missing | Connect **Google Sheets** in claude.ai → Settings → Connectors, check it with `/mcp`, then run `/plugin-ledger:sync`. |
 | No sheet was created | Check that the **Google Drive** connector is connected (`/mcp`). Run `node scripts/sync.js --dry-run`: if it shows nothing, everything is already synced. |
+| "could not write plugin-ledger.xlsx (EBUSY/EPERM)" | The file is open in Excel. Close it; the next session writes it, and nothing is lost. |
+| Sheets connector says "Permission denied" | It's signed in with a different Google account than the one that owns the sheet. Reconnect Google Sheets with the same account as Google Drive. |
 | `node: command not found` at session start | Install Node.js 18+ and make sure `node` is on your `PATH`. |
 | A plugin from another agent is missing | Check that it's in one of the folders under [What it tracks](#what-it-tracks). Agents that store plugins elsewhere aren't covered yet. |
 | A second `claude-plugin` file appeared | Keep one. Claude only creates the sheet when it can't find one titled exactly `claude-plugin`, so check whether it was renamed or moved to the trash. |
@@ -150,7 +185,9 @@ Delete `synced.json` to resend everything. Existing rows are updated, not duplic
 
 ## Limitations
 
-- **Sync needs Claude Code.** The Google connectors live in Claude, so other agents' installs are recorded the next time you open a Claude Code session.
+- **Updates happen at Claude Code session start.** Other agents' installs are recorded the next time you open a Claude Code session.
+- **Google Drive is Google Sheet only.** The Drive connector can't update a CSV or JSON file in place, so those formats are local only.
+- **Switching destination doesn't move history.** Each destination keeps its own rows; the first sync to a new one lists what's currently installed.
 - **MCP install dates are approximate.** MCP configs don't record when a server was added, so the date shown is when plugin-ledger first saw it.
 - **Skill install dates may be approximate.** For skills not installed through `npx skills`, the date is when their folder was created.
 - **Codex support hasn't been tested on a real install.** It's covered by the self-test only.
@@ -166,8 +203,10 @@ plugin-ledger/
 │   ├── plugin.json         # plugin manifest
 │   └── marketplace.json    # lets /plugin marketplace add install it
 ├── hooks/hooks.json        # SessionStart → node scripts/sync.js
-├── scripts/sync.js         # scanner, diff, CSV export, commit, self-test (no dependencies)
-└── skills/sync/SKILL.md    # how Claude writes changes to the sheet
+├── scripts/sync.js         # scanner, ledger, xlsx/csv/json writers, Drive handoff, self-test (no dependencies)
+└── skills/
+    ├── setup/SKILL.md      # asks where to store the ledger and in which format
+    └── sync/SKILL.md       # how Claude writes changes to the Google Sheet
 ```
 
 ## License
