@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="t">
+  <title id="t">plugin-ledger logo</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24497A"/>
+      <stop offset="1" stop-color="#13263F"/>
+    </linearGradient>
+    <linearGradient id="prong" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#CBD5E1"/>
+    </linearGradient>
+    <clipPath id="page"><rect x="62" y="64" width="132" height="150" rx="14"/></clipPath>
+    <style>
+      /* Rows write themselves in, dots pop, the last row flips to Removed; loops every 6s. */
+      .line { transform-box: fill-box; transform-origin: left center; animation: write 6s ease-out infinite; }
+      .dot  { transform-box: fill-box; transform-origin: center; animation: pop 6s ease-out infinite; }
+      .r2 { animation-delay: .25s } .r3 { animation-delay: .5s } .r4 { animation-delay: .75s }
+      .flip { animation: flip 6s ease-in-out infinite; }
+      .spark { animation: spark 3s ease-in-out infinite; }
+      @keyframes write { 0%, 8% { transform: scaleX(0) } 22%, 92% { transform: scaleX(1) } 100% { transform: scaleX(0) } }
+      @keyframes pop { 0%, 18% { transform: scale(0) } 26% { transform: scale(1.25) } 30%, 92% { transform: scale(1) } 100% { transform: scale(0) } }
+      @keyframes flip { 0%, 55% { fill: #34A853 } 62%, 92% { fill: #EA4335 } 100% { fill: #34A853 } }
+      @keyframes spark { 0%, 100% { opacity: .35 } 50% { opacity: 1 } }
+      @media (prefers-reduced-motion: reduce) { .line, .dot, .flip, .spark { animation: none } }
+    </style>
+  </defs>
+
+  <rect width="256" height="256" rx="58" fill="url(#bg)"/>
+
+  <!-- plug prongs: the "plugin" half -->
+  <rect x="98" y="30" width="16" height="40" rx="5" fill="url(#prong)"/>
+  <rect x="142" y="30" width="16" height="40" rx="5" fill="url(#prong)"/>
+  <circle class="spark" cx="128" cy="40" r="5" fill="#7DD3FC"/>
+
+  <!-- ledger page: the "ledger" half -->
+  <rect x="62" y="64" width="132" height="150" rx="14" fill="#FFFFFF"/>
+  <g clip-path="url(#page)">
+    <rect x="62" y="64" width="132" height="30" fill="#1F3A5F"/>
+    <rect x="62" y="94" width="14" height="120" fill="#E2E8F0"/>
+    <rect x="78" y="122" width="116" height="22" fill="#EEF3F8"/>
+    <rect x="78" y="166" width="116" height="22" fill="#EEF3F8"/>
+  </g>
+  <rect x="84" y="76" width="54" height="7" rx="3.5" fill="#FFFFFF" opacity=".9"/>
+  <rect x="148" y="76" width="30" height="7" rx="3.5" fill="#FFFFFF" opacity=".55"/>
+
+  <!-- rows -->
+  <rect class="line"    x="86" y="106" width="64" height="8" rx="4" fill="#94A3B8"/>
+  <rect class="line r2" x="86" y="129" width="52" height="8" rx="4" fill="#94A3B8"/>
+  <rect class="line r3" x="86" y="152" width="70" height="8" rx="4" fill="#94A3B8"/>
+  <rect class="line r4" x="86" y="173" width="46" height="8" rx="4" fill="#94A3B8"/>
+
+  <circle class="dot"    cx="174" cy="110" r="7" fill="#34A853"/>
+  <circle class="dot r2" cx="174" cy="133" r="7" fill="#34A853"/>
+  <circle class="dot r3" cx="174" cy="156" r="7" fill="#34A853"/>
+  <circle class="dot r4 flip" cx="174" cy="177" r="7" fill="#34A853"/>
+</svg>
