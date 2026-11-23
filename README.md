@@ -6,13 +6,15 @@ You install a plugin or skill, use it once, and a month later you have no idea w
 
 **You choose where it lives** the first time it runs:
 
-| Destination | Formats | Needs | Updates |
+| Destination | Kept as | Needs | Updates |
 |---|---|---|---|
-| **Local: Claude folder** (`~/.claude/plugin-ledger/`) | Excel `.xlsx`, `.csv`, `.json` | Nothing | At every session start, by the hook itself, using no tokens |
-| **Local: a folder you choose** | Excel `.xlsx`, `.csv`, `.json` | Nothing | Same as above |
-| **Google Drive** | Google Sheet (`claude-plugin`) | Google Drive and Google Sheets connectors | In Claude's first turn after a change |
+| **Local: Claude folder** (`~/.claude/plugin-ledger/`) | Excel `<name>.xlsx` | Nothing | At every session start, by the hook itself, using no tokens |
+| **Local: a folder you choose** | Excel `<name>.xlsx` | Nothing | Same as above |
+| **Google Drive** | Google Sheet `<name>` | Google Drive and Google Sheets connectors | In Claude's first turn after a change |
 
-The Excel file is styled like a table: dark frozen header, filters on every column, banded rows, wrapped text, and green **Installed** / red **Removed**. Google Drive only supports a Google Sheet, because the Drive connector can't update a CSV or JSON file in place.
+The Excel file is styled like a table: dark frozen header, filters on every column, banded rows, wrapped text, and green **Installed** / red **Removed**. The name defaults to **`plugin-ledger`**. You can change it at setup, and it stays fixed after that, including the Google Sheet's title.
+
+**Need CSV or JSON?** Run `/plugin-ledger:export` whenever you want one. You choose the format (CSV, JSON or Excel), the file name and the folder each time, and it never overwrites a file without asking. Nothing writes CSV or JSON on its own.
 
 ---
 
@@ -45,7 +47,7 @@ The Excel file is styled like a table: dark frozen header, filters on every colu
 | Requirement | Why it's needed |
 |---|---|
 | Claude Code signed in with your **claude.ai** account | Connectors come from claude.ai. |
-| **Google Drive connector** | Creates the `claude-plugin` sheet the first time. |
+| **Google Drive connector** | Creates the sheet the first time. |
 | **Google Sheets connector** | Adds rows, marks removals and applies the table style on later syncs. Drive alone can create a file but can't edit one. |
 
 Connect both with the **same Google account**: the Sheets connector can only open sheets that account can access. You don't need a Google Cloud project, API keys or an Apps Script.
@@ -77,14 +79,24 @@ claude plugin install plugin-ledger@plugin-ledger
 At the next session start, Claude asks two questions before anything else:
 
 1. **Where?** Claude folder (recommended) · a folder you choose · Google Drive
-2. **Format?** Excel (recommended) · CSV · JSON (local only)
+2. **Name?** `plugin-ledger` (recommended), or type your own. It's fixed from then on.
 
 It then writes the ledger with everything already installed and tells you where it is. From then on:
 
 - **Local:** the file is rewritten only when something is installed or removed.
 - **Google Drive:** Claude updates the sheet in its first turn after a change.
 
-Run `/plugin-ledger:setup` any time to change the destination or format.
+Run `/plugin-ledger:setup` any time to change the destination or name. A new name starts a new file or sheet, and the old one is kept.
+
+### Exporting CSV or JSON
+
+Run `/plugin-ledger:export`. Claude asks three things each time:
+
+1. **Format:** CSV · JSON · Excel
+2. **File name:** `plugin-ledger` (recommended) or your own
+3. **Folder:** Downloads · this project · Claude folder · any path
+
+The export contains the full history: Installed and Removed rows from every agent.
 
 ### 3. (Google Drive only) Connect Google
 
@@ -118,9 +130,9 @@ session starts
    ▼
 hook: node scripts/sync.js ── scans every agent
    │
-   ├─ not set up yet ──► Claude runs plugin-ledger:setup (asks where + format)
+   ├─ not set up yet ──► Claude runs plugin-ledger:setup (asks where + name)
    │
-   ├─ LOCAL ──► merges into ledger.json ──► rewrites plugin-ledger.xlsx/.csv/.json
+   ├─ LOCAL ──► merges into ledger.json ──► rewrites <name>.xlsx
    │            (nothing changed: does nothing; no Claude, no tokens)
    │
    └─ GOOGLE DRIVE ──► compares with synced.json
@@ -152,17 +164,19 @@ hook: node scripts/sync.js ── scans every agent
 
 | Command | What it does |
 |---|---|
-| `/plugin-ledger:setup` | Choose or change where the ledger is stored and its format |
+| `/plugin-ledger:setup` | Choose or change where the ledger is stored and its name |
 | `/plugin-ledger:sync` | Update the Google Sheet now (Drive destination), without waiting for a new session |
 | `node scripts/sync.js` | Local destination: update the file now |
-| `node scripts/sync.js --configure --destination local --format xlsx\|csv\|json [--path <folder>]` | Set the destination without asking (`--destination drive` for Google Drive) |
+| `/plugin-ledger:export` | Export a CSV, JSON or Excel copy; you choose the format, name and folder |
+| `node scripts/sync.js --configure --destination local\|drive [--name <name>] [--path <folder>]` | Set the destination and name without asking |
+| `node scripts/sync.js --export --format csv\|json\|xlsx --out <file> [--overwrite]` | Export without asking. Refuses to replace an existing file unless `--overwrite` |
 | `node scripts/sync.js --dry-run` | Show what would be added or removed, and change nothing |
 | `node scripts/sync.js --test` | Run the self-test (every agent, no-secrets check, ledger history, xlsx structure) |
 | `node scripts/sync.js --csv` / `--commit` | Used by the Drive sync: export pending rows, mark them written |
 
 State is kept in `~/.claude/plugin-ledger/`:
-- `config.json`: your destination, format and folder.
-- `ledger.json`: local destination's full history (every row, Installed or Removed). The output file is rebuilt from it.
+- `config.json`: your destination, name and folder.
+- `ledger.json`: full history (every row, Installed or Removed), kept for both destinations. The local Excel file and every export are built from it.
 - `synced.json` and `pending.json`: Drive destination; what the sheet lists as Installed, and changes waiting to be written.
 
 To rebuild from scratch, delete `ledger.json` (local) or `synced.json` (Drive). Removal history is lost for local; Drive rows are updated, not duplicated.
@@ -175,18 +189,19 @@ To rebuild from scratch, delete `ledger.json` (local) or `synced.json` (Drive). 
 |---|---|
 | Claude says the Google Sheets connector is missing | Connect **Google Sheets** in claude.ai → Settings → Connectors, check it with `/mcp`, then run `/plugin-ledger:sync`. |
 | No sheet was created | Check that the **Google Drive** connector is connected (`/mcp`). Run `node scripts/sync.js --dry-run`: if it shows nothing, everything is already synced. |
-| "could not write plugin-ledger.xlsx (EBUSY/EPERM)" | The file is open in Excel. Close it; the next session writes it, and nothing is lost. |
+| "could not write <name>.xlsx (EBUSY/EPERM)" | The file is open in Excel. Close it; the next session writes it, and nothing is lost. |
 | Sheets connector says "Permission denied" | It's signed in with a different Google account than the one that owns the sheet. Reconnect Google Sheets with the same account as Google Drive. |
 | `node: command not found` at session start | Install Node.js 18+ and make sure `node` is on your `PATH`. |
 | A plugin from another agent is missing | Check that it's in one of the folders under [What it tracks](#what-it-tracks). Agents that store plugins elsewhere aren't covered yet. |
-| A second `claude-plugin` file appeared | Keep one. Claude only creates the sheet when it can't find one titled exactly `claude-plugin`, so check whether it was renamed or moved to the trash. |
+| A second sheet with your ledger's name appeared | Keep one. Claude only creates the sheet when it can't find one with exactly the name chosen at setup, so check whether it was renamed or moved to the trash. |
+| Export says the file already exists | Choose overwrite or a different name when Claude asks. |
 
 ---
 
 ## Limitations
 
 - **Updates happen at Claude Code session start.** Other agents' installs are recorded the next time you open a Claude Code session.
-- **Google Drive is Google Sheet only.** The Drive connector can't update a CSV or JSON file in place, so those formats are local only.
+- **The auto-updated ledger is Excel or a Google Sheet.** CSV and JSON are on-demand exports only, because the Drive connector can't update a CSV or JSON file in place and you asked to control when they are written.
 - **Switching destination doesn't move history.** Each destination keeps its own rows; the first sync to a new one lists what's currently installed.
 - **MCP install dates are approximate.** MCP configs don't record when a server was added, so the date shown is when plugin-ledger first saw it.
 - **Skill install dates may be approximate.** For skills not installed through `npx skills`, the date is when their folder was created.
@@ -203,10 +218,11 @@ plugin-ledger/
 │   ├── plugin.json         # plugin manifest
 │   └── marketplace.json    # lets /plugin marketplace add install it
 ├── hooks/hooks.json        # SessionStart → node scripts/sync.js
-├── scripts/sync.js         # scanner, ledger, xlsx/csv/json writers, Drive handoff, self-test (no dependencies)
+├── scripts/sync.js         # scanner, ledger, xlsx writer, exports, Drive handoff, self-test (no dependencies)
 └── skills/
-    ├── setup/SKILL.md      # asks where to store the ledger and in which format
-    └── sync/SKILL.md       # how Claude writes changes to the Google Sheet
+    ├── setup/SKILL.md      # asks where to keep the ledger and what to name it
+    ├── sync/SKILL.md       # how Claude writes changes to the Google Sheet
+    └── export/SKILL.md     # on-demand CSV / JSON / Excel export
 ```
 
 ## License

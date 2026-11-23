@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // plugin-ledger: on SessionStart, diff installed plugins/skills against the last sync and ask Claude to update the Drive sheet.
 // Usage: sync.js            normal run (hook): local mode writes the file itself, Drive mode hands off to Claude
-//        sync.js --configure --destination local|drive [--format xlsx|csv|json] [--path <folder>]
+//        sync.js --configure --destination local|drive [--name <name>] [--path <folder>]
+//        sync.js --export --format csv|json|xlsx --out <file> [--overwrite]
 //        sync.js --dry-run  print what changed, write nothing
 //        sync.js --commit   mark pending.json as written to the sheet
 //        sync.js --csv      print pending additions as CSV (for creating the sheet)
@@ -273,6 +274,13 @@ function mergeLedger(ledger, rows, now) {
   return { added, removed };
 }
 
+const DEFAULT_NAME = 'plugin-ledger';
+// A plain file/sheet name: no folders, no characters Windows forbids, no extension.
+function cleanName(n) {
+  const s = (n ?? DEFAULT_NAME).trim().replace(/\.(xlsx|csv|json)$/i, '');
+  if (!s || /[\\/:*?"<>|\x00-\x1f]/.test(s) || /^\.+$/.test(s)) throw new Error('--name must be a plain file name (no \\ / : * ? " < > |)');
+  return s;
+}
 const arg = k => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
 const expandHome = (p, home) => p.replace(/^~(?=$|[\\/])/, home);
 
@@ -289,18 +297,33 @@ function main() {
   const pendingFile = path.join(dir, 'pending.json');
   const synced = readJson(syncedFile, []);
   const configFile = path.join(dir, 'config.json');
+  const ledgerFile = path.join(dir, 'ledger.json'); // full history (Installed + Removed) behind the local file and exports
 
   if (process.argv.includes('--configure')) {
-    // The setup skill runs this with the user's answers.
-    const destination = arg('--destination'), format = arg('--format') || 'xlsx';
+    // The setup skill runs this with the user's answers. The name is fixed from here on.
+    const destination = arg('--destination'), name = cleanName(arg('--name'));
     if (!['local', 'drive'].includes(destination)) throw new Error('--destination must be local or drive');
-    if (destination === 'local' && !RENDER[format]) throw new Error('--format must be xlsx, csv or json');
     const folder = path.resolve(expandHome(arg('--path') || dir, home));
-    const cfg = destination === 'drive' ? { destination } : { destination, format, path: folder };
+    const cfg = destination === 'drive' ? { destination, name } : { destination, name, path: folder };
     fs.mkdirSync(dir, { recursive: true });
     if (destination === 'local') fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2));
     return console.log(`plugin-ledger: saved ${JSON.stringify(cfg)}`);
+  }
+
+  if (process.argv.includes('--export')) {
+    // On demand only: the user picks format, name and folder each time (export skill).
+    const format = arg('--format'), out = arg('--out');
+    if (!RENDER[format]) throw new Error('--format must be csv, json or xlsx');
+    if (!out) throw new Error('--out <file path> is required');
+    let file = path.resolve(expandHome(out, home));
+    if (path.extname(file).toLowerCase() !== `.${format}`) file += `.${format}`;
+    if (fs.existsSync(file) && !process.argv.includes('--overwrite')) throw new Error(`${file} already exists; pass --overwrite to replace it`);
+    const ledger = readJson(ledgerFile, []); // history so far, plus what's installed right now (not saved)
+    mergeLedger(ledger, collect(home), new Date().toISOString());
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, RENDER[format](ledger));
+    return console.log(`plugin-ledger: exported ${ledger.length} rows to ${file}`);
   }
 
   const cfg = readJson(configFile, null);
@@ -308,20 +331,19 @@ function main() {
     // First run: nothing chosen yet. (A synced.json without config means an existing Google Drive setup.)
     if (process.argv.includes('--dry-run')) return console.log('plugin-ledger: not set up yet');
     return console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext:
-      `plugin-ledger is installed but not set up. Before answering the user's first message, use the plugin-ledger:setup skill to ask where to keep the ledger and in which format.` } }));
+      `plugin-ledger is installed but not set up. Before answering the user's first message, use the plugin-ledger:setup skill to ask where to keep the ledger and what to name it.` } }));
   }
 
   if (cfg?.destination === 'local') {
     // Local file: the hook does everything itself; no connector, no tokens unless something changed.
-    const ledgerFile = path.join(dir, 'ledger.json');
-    const out = path.join(cfg.path, `plugin-ledger.${cfg.format}`);
+    const out = path.join(cfg.path, `${cfg.name || DEFAULT_NAME}.xlsx`);
     const ledger = readJson(ledgerFile, []);
     const { added, removed } = mergeLedger(ledger, collect(home), new Date().toISOString());
     if (process.argv.includes('--dry-run')) return console.log(JSON.stringify({ added, removed, out }, null, 2));
     if (!added && !removed && fs.existsSync(out)) return;
     try {
       fs.mkdirSync(cfg.path, { recursive: true });
-      fs.writeFileSync(out + '.tmp', RENDER[cfg.format](ledger));
+      fs.writeFileSync(out + '.tmp', toXlsx(ledger));
       fs.renameSync(out + '.tmp', out);
     } catch (e) {
       // Usually the file is open in Excel. ledger.json is left unchanged, so the next session retries.
@@ -345,6 +367,9 @@ function main() {
     if (!p) return console.log('plugin-ledger: nothing pending');
     const next = [...new Set([...synced, ...p.added.map(r => r.name)])].filter(n => !p.removed.includes(n));
     fs.writeFileSync(syncedFile, JSON.stringify(next, null, 2));
+    const ledger = readJson(ledgerFile, []); // keep local history too, so exports include removals
+    mergeLedger(ledger, collect(home), p.detectedAt);
+    fs.writeFileSync(ledgerFile, JSON.stringify(ledger, null, 2));
     fs.rmSync(pendingFile);
     return console.log(`plugin-ledger: committed ${p.added.length} added, ${p.removed.length} removed`);
   }
@@ -355,16 +380,19 @@ function main() {
 
   const now = new Date().toISOString();
   for (const r of added) r.installedAt ||= now; // MCP servers: first-seen date
+  // Sheet name fixed at setup; Drive setups from before config.json existed used "claude-plugin".
+  const sheetName = cfg?.name || 'claude-plugin';
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(pendingFile, JSON.stringify({
     detectedAt: now,
+    sheetName,
     added,
     removed,
     commitCommand: `node "${__filename}" --commit`,
   }, null, 2));
   console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext:
     `plugin-ledger: ${added.length} plugin/skill/MCP item(s) added and ${removed.length} removed since the last sync. ` +
-    `Before answering the user's first message, use the plugin-ledger:sync skill to update the "claude-plugin" Google Sheet, then tell the user in one line.` } }));
+    `Before answering the user's first message, use the plugin-ledger:sync skill to update the "${sheetName}" Google Sheet, then tell the user in one line.` } }));
 }
 
 function selfTest() {
@@ -447,9 +475,10 @@ function selfTest() {
   assert.ok(s1.includes('<autoFilter ref="A1:I3"/>') && s1.includes('state="frozen"'));
   assert.ok(s1.includes('r="G2" t="inlineStr" s="4"') && s1.includes('r="G3" t="inlineStr" s="5"'), 'Installed/Removed styles');
   assert.ok(toXlsx([{ name: 'a & <b>\x07' }]).length > 0 && xml('a & <b>\x07') === 'a &amp; &lt;b&gt;');
+assert.strictEqual(cleanName(undefined), 'plugin-ledger');  assert.strictEqual(cleanName(' My Plugins.xlsx '), 'My Plugins');  for (const bad of ['', '../x', 'a/b', 'a:b', '..']) assert.throws(() => cleanName(bad), /plain file name/);
   fs.rmSync(home, { recursive: true, force: true });
   console.log('self-test passed');
 }
 
 if (process.argv.includes('--test')) selfTest();
-else try { main(); } catch (e) { console.error(`plugin-ledger: ${e.message}`); }
+else try { main(); } catch (e) { console.error(`plugin-ledger: ${e.message}`); process.exitCode = 1; }
