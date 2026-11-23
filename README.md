@@ -12,41 +12,58 @@
 </p>
 
 <p align="center">
-  <a href="#-quick-start"><b>Quick start</b></a> ·
+  <a href="#-quick-start-under-2-minutes"><b>Quick start</b></a> ·
+  <a href="#-see-it-in-action"><b>Demo</b></a> ·
   <a href="#-where-your-ledger-lives"><b>Destinations</b></a> ·
-  <a href="#-how-it-works"><b>How it works</b></a> ·
-  <a href="#-export-csv-or-json"><b>Export</b></a> ·
+  <a href="#-plugin-ledger-vs-the-alternatives"><b>Compare</b></a> ·
+  <a href="#-faq"><b>FAQ</b></a> ·
   <a href="#-reference"><b>Reference</b></a>
 </p>
 
 ---
 
-You install a plugin or skill, use it once, and a month later you have no idea what it does or where it came from.
+**plugin-ledger** is a **ledger plugin for plugin management** across AI coding agents. It keeps one inventory of every **plugin, skill and MCP server** you've installed in **Claude Code, Antigravity, Gemini CLI, opencode, GitHub Copilot and Codex**, as an Excel file or a Google Sheet, so you never forget what a plugin is for.
 
-**plugin-ledger** keeps a ledger of every **plugin, skill and MCP server** installed in **any coding agent on your machine**: Claude Code, Antigravity, Gemini CLI, opencode, GitHub Copilot and Codex. Each row has a link, install date, description and use case. Uninstall something and its row is marked **Removed** with the date, so you keep the history.
+You install a plugin from a **plugin marketplace**, use it once, and a month later you have no idea what it does or where it came from. plugin-ledger remembers for you:
 
-## 🚀 Quick start
+- 🔗 **Where it came from:** the marketplace or repository link
+- 📅 **When you installed it,** and when you removed it
+- 💡 **What it's for:** the description and each skill's "Use when…" sentence
+- 🤖 **Which agent has it:** one row per agent, including every **MCP plugin** (MCP server)
+- 🧾 **History:** uninstalled items stay as **Removed**, so your personal **plugin registry** never forgets
 
-```
-/plugin marketplace add miteshviras/plugin-ledger
-/plugin install plugin-ledger@plugin-ledger
-```
+## ⚡ Quick start (under 2 minutes)
 
-Type each command on its own in Claude Code's message box, or run the same thing from a terminal:
+**1. Install** (about 30 seconds). Run these from a terminal:
 
 ```
 claude plugin marketplace add miteshviras/plugin-ledger
 claude plugin install plugin-ledger@plugin-ledger
 ```
 
-**Start a new session.** Claude asks two questions, then writes your ledger with everything already installed:
+Or type `/plugin marketplace add miteshviras/plugin-ledger`, then `/plugin install plugin-ledger@plugin-ledger`, on their own in Claude Code's message box.
+
+**2. Start a new session and answer two questions** (about 30 seconds):
 
 | | Question | Your options |
 |---|---|---|
 | 1️⃣ | **Where?** | Claude folder *(recommended)* · a folder you choose · Google Drive |
 | 2️⃣ | **Name?** | `plugin-ledger` *(recommended)* or your own. Fixed from then on. |
 
-That's it. Change either answer later with `/plugin-ledger:setup`.
+**3. Open your ledger.** It already lists everything installed in every agent, and it updates itself at each session start. Change either answer later with `/plugin-ledger:setup`.
+
+> Choosing a local folder needs no account, no API key and no connector. Google Drive needs the Google Drive and Google Sheets connectors ([setup below](#-where-your-ledger-lives)).
+
+## 🎬 See it in action
+
+<p align="center">
+  <img src="assets/demo-terminal.svg" alt="Demo: install plugin-ledger, pick the Claude folder, get an Excel ledger of 108 plugins, skills and MCP servers, then export it to CSV" width="100%">
+</p>
+
+<p align="center">
+  <img src="assets/sheet-preview.svg" alt="Example plugin ledger sheet: plugins, skills and MCP servers from Claude Code, Antigravity, Gemini CLI, shared skills and Copilot, with Installed and Removed status" width="100%">
+  <br><sub>Example data. Your ledger also has link, description and removed-date columns.</sub>
+</p>
 
 ## 📁 Where your ledger lives
 
@@ -136,6 +153,89 @@ CSV and JSON are **never written automatically**. Run `/plugin-ledger:export` an
 | **Folder** | Downloads · this project · Claude folder · any path |
 
 It never overwrites a file without asking. The export has the full history: Installed and Removed rows from every agent.
+
+## 🆚 plugin-ledger vs the alternatives
+
+How else can you keep track of AI plugins and MCP servers?
+
+| | **plugin-ledger** | Each agent's own plugin list (`/plugin`, settings) | A spreadsheet you keep by hand |
+|---|:---:|:---:|:---:|
+| One list across Claude Code, Antigravity, Gemini CLI, opencode, Copilot, Codex | ✅ | ❌ one agent at a time | ✅ if you add every one |
+| Plugins, skills **and** MCP servers | ✅ | Varies by agent | ✅ if you add them |
+| Remembers what you **removed**, and when | ✅ | ❌ gone once uninstalled | ⚠️ if you remember |
+| What each plugin is **for** (use case) | ✅ pulled from each skill | ⚠️ description only | ⚠️ if you write it |
+| Marketplace / source link | ✅ | ⚠️ sometimes | ⚠️ if you copy it |
+| Updates itself | ✅ every session | ✅ | ❌ |
+| Excel / Google Sheet / CSV / JSON | ✅ | ❌ | ✅ |
+| Account or API key needed | ❌ (local) | ❌ | ❌ |
+| Cost | Free, MIT | Free | Your time |
+
+Use your agent's own list for turning a plugin on or off. Use plugin-ledger to remember what you have, why you installed it, and what you removed.
+
+## ❓ FAQ
+
+<details>
+<summary><b>Is plugin-ledger a plugin marketplace?</b></summary>
+
+<br>
+
+No. It doesn't install or distribute plugins. It records the **plugin marketplace** or repository each plugin came from, so you can find it again. You install plugin-ledger itself from its own marketplace (see [Quick start](#-quick-start-under-2-minutes)).
+
+</details>
+
+<details>
+<summary><b>Is it a plugin registry or a plugin manager?</b></summary>
+
+<br>
+
+Think of it as a **personal plugin registry**: a read-only inventory of what's installed on your machine, with history. It's a **plugin management** aid, but it never installs, updates or removes plugins. Your agents keep doing that.
+
+</details>
+
+<details>
+<summary><b>Does it track MCP plugins (MCP servers)?</b></summary>
+
+<br>
+
+Yes. MCP servers configured in Claude Code, Antigravity, Gemini CLI, opencode, GitHub Copilot and Codex each get a row with the server's URL or launch command. API keys, tokens, headers and environment variables are never written.
+
+</details>
+
+<details>
+<summary><b>Does it track ChatGPT plugins?</b></summary>
+
+<br>
+
+No. ChatGPT plugins and GPTs live in OpenAI's web app, not on your machine, so there's nothing local to read. plugin-ledger does track **Codex**, OpenAI's coding agent: its skills (`~/.codex/skills`) and MCP servers (`~/.codex/config.toml`).
+
+</details>
+
+<details>
+<summary><b>Do I need Claude Code?</b></summary>
+
+<br>
+
+Yes, to run it. plugin-ledger is a Claude Code plugin, and its session-start hook does the scanning. It then reads every other agent's folders, so those agents need nothing installed.
+
+</details>
+
+<details>
+<summary><b>Does it send my data anywhere?</b></summary>
+
+<br>
+
+No. The hook only reads local files. With a local destination, nothing leaves your machine. With Google Drive, the sheet is created in your own Drive through Claude's connectors, and it isn't shared.
+
+</details>
+
+<details>
+<summary><b>How do I get CSV or JSON?</b></summary>
+
+<br>
+
+Run `/plugin-ledger:export`. You choose CSV, JSON or Excel, the file name and the folder each time. It never overwrites a file without asking.
+
+</details>
 
 ## 🛡️ Privacy
 

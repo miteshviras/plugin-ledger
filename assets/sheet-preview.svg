@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 420" width="1100" height="420" role="img" aria-labelledby="t d">
+  <title id="t">Example plugin-ledger sheet</title>
+  <desc id="d">An example plugin ledger: plugins, skills and MCP servers from Claude Code, Antigravity, Gemini CLI, shared skills and Copilot, each with type, agent, install date, use case and an Installed or Removed status.</desc>
+  <defs>
+    <style>
+      text { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif; font-size: 13px; fill: #1E293B; }
+      .h { font-weight: 700; fill: #FFFFFF; }
+      .n { font-weight: 600; }
+      .m { fill: #64748B; }
+      .pill { font-size: 11.5px; font-weight: 700; }
+      .new { animation: newrow 6s ease-in-out infinite; }
+      @keyframes newrow { 0%, 10% { opacity: 0; transform: translateY(-6px) } 22%, 100% { opacity: 1; transform: translateY(0) } }
+      .flipBg { animation: flipBg 6s ease-in-out infinite; }
+      .ins { animation: ins 6s step-end infinite; }
+      .rem { animation: rem 6s step-end infinite; opacity: 0; }
+      @keyframes flipBg { 0%, 45% { fill: #D9F2E3 } 52%, 100% { fill: #FCE1E1 } }
+      @keyframes ins { 0% { opacity: 1 } 48% { opacity: 0 } }
+      @keyframes rem { 0% { opacity: 0 } 48% { opacity: 1 } }
+      @media (prefers-reduced-motion: reduce) { .new, .flipBg, .ins, .rem { animation: none } }
+    </style>
+  </defs>
+
+  <!-- window -->
+  <rect width="1100" height="420" rx="14" fill="#FFFFFF" stroke="#CBD5E1"/>
+  <rect width="1100" height="44" rx="14" fill="#F1F5F9"/>
+  <rect y="30" width="1100" height="14" fill="#F1F5F9"/>
+  <rect x="18" y="11" width="22" height="22" rx="4" fill="#34A853"/>
+  <rect x="23" y="16" width="12" height="12" rx="1" fill="none" stroke="#FFFFFF" stroke-width="1.6"/>
+  <path d="M23 22 h12 M29 16 v12" stroke="#FFFFFF" stroke-width="1.6"/>
+  <text x="50" y="27" style="font-size:15px;font-weight:600">plugin-ledger</text>
+  <text x="1082" y="27" text-anchor="end" class="m">Example data</text>
+
+  <!-- header -->
+  <rect x="0" y="44" width="1100" height="34" fill="#1F3A5F"/>
+  <text class="h" x="16"  y="66">Plugin name</text>
+  <text class="h" x="300" y="66">Type</text>
+  <text class="h" x="365" y="66">Agent</text>
+  <text class="h" x="510" y="66">Installed</text>
+  <text class="h" x="610" y="66">Use case</text>
+  <text class="h" x="980" y="66">Status</text>
+
+  <!-- rows (34px each) -->
+  <g>
+    <text class="n" x="16" y="100">postman@claude-plugins-official</text><text x="300" y="100">plugin</text><text x="365" y="100">Claude Code</text><text x="510" y="100">2026-10-30</text>
+    <text class="m" x="610" y="100">api-testing: Use when testing an endpoint with real…</text>
+    <rect x="968" y="86" width="84" height="22" rx="11" fill="#D9F2E3"/><text class="pill" x="1010" y="101" text-anchor="middle" fill="#137333" style="fill:#137333">Installed</text>
+  </g>
+  <g>
+    <rect x="0" y="112" width="1100" height="34" fill="#EEF3F8"/>
+    <text class="n" x="16" y="134">humanizer@humanizer</text><text x="300" y="134">plugin</text><text x="365" y="134">Claude Code</text><text x="510" y="134">2026-11-03</text>
+    <text class="m" x="610" y="134">Use when editing or reviewing prose for AI tells…</text>
+    <rect x="968" y="120" width="84" height="22" rx="11" fill="#D9F2E3"/><text class="pill" x="1010" y="135" text-anchor="middle" style="fill:#137333">Installed</text>
+  </g>
+  <g>
+    <text class="n" x="16" y="168">claude-seo@agricidaniel-claude-seo</text><text x="300" y="168">plugin</text><text x="365" y="168">Claude Code</text><text x="510" y="168">2026-11-13</text>
+    <text class="m" x="610" y="168">seo-audit: Run a full-site SEO audit and return a…</text>
+    <rect x="968" y="154" width="84" height="22" rx="11" fill="#D9F2E3"/><text class="pill" x="1010" y="169" text-anchor="middle" style="fill:#137333">Installed</text>
+  </g>
+  <g>
+    <rect x="0" y="180" width="1100" height="34" fill="#EEF3F8"/>
+    <text class="n" x="16" y="202">antigravity:plugin:firebase</text><text x="300" y="202">plugin</text><text x="365" y="202">Antigravity</text><text x="510" y="202">2026-09-17</text>
+    <text class="m" x="610" y="202">Prototype, build &amp; run modern apps with Firebase…</text>
+    <rect x="968" y="188" width="84" height="22" rx="11" fill="#D9F2E3"/><text class="pill" x="1010" y="203" text-anchor="middle" style="fill:#137333">Installed</text>
+  </g>
+  <g>
+    <text class="n" x="16" y="236">agents:skill:hyperframes</text><text x="300" y="236">skill</text><text x="365" y="236">Shared (~/.agents)</text><text x="510" y="236">2026-08-23</text>
+    <text class="m" x="610" y="236">Read first to make, edit, animate or render any video…</text>
+    <rect x="968" y="222" width="84" height="22" rx="11" fill="#D9F2E3"/><text class="pill" x="1010" y="237" text-anchor="middle" style="fill:#137333">Installed</text>
+  </g>
+  <g>
+    <rect x="0" y="248" width="1100" height="34" fill="#EEF3F8"/>
+    <text class="n" x="16" y="270">gemini:mcp:Neon</text><text x="300" y="270">mcp</text><text x="365" y="270">Gemini CLI</text><text x="510" y="270">2026-11-23</text>
+    <text class="m" x="610" y="270">MCP server (remote) · https://mcp.neon.tech/mcp</text>
+    <rect x="968" y="256" width="84" height="22" rx="11" fill="#D9F2E3"/><text class="pill" x="1010" y="271" text-anchor="middle" style="fill:#137333">Installed</text>
+  </g>
+  <g>
+    <text class="n" x="16" y="304">copilot:mcp:Neon</text><text x="300" y="304">mcp</text><text x="365" y="304">Copilot</text><text x="510" y="304">2026-11-23</text>
+    <text class="m" x="610" y="304">MCP server (remote) · removed 2026-12-02</text>
+    <rect class="flipBg" x="968" y="290" width="84" height="22" rx="11" fill="#D9F2E3"/>
+    <text class="pill ins" x="1010" y="305" text-anchor="middle" style="fill:#137333">Installed</text>
+    <text class="pill rem" x="1010" y="305" text-anchor="middle" style="fill:#A50E0E">Removed</text>
+  </g>
+  <g class="new">
+    <rect x="0" y="316" width="1100" height="34" fill="#EEF3F8"/>
+    <text class="n" x="16" y="338">rea-video@rea-video</text><text x="300" y="338">plugin</text><text x="365" y="338">Claude Code</text><text x="510" y="338">2026-11-22</text>
+    <text class="m" x="610" y="338">Use when the user shares a reference video and asks…</text>
+    <rect x="968" y="324" width="84" height="22" rx="11" fill="#D9F2E3"/><text class="pill" x="1010" y="339" text-anchor="middle" style="fill:#137333">Installed</text>
+  </g>
+
+  <line x1="0" y1="350" x2="1100" y2="350" stroke="#E2E8F0"/>
+  <text x="16" y="390" class="m">+ link, description and removed-date columns · filters on every column · new installs appear at the bottom</text>
+</svg>

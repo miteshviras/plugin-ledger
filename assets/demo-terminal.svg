@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" width="900" height="440" role="img" aria-labelledby="t d">
+  <title id="t">plugin-ledger demo</title>
+  <desc id="d">Install plugin-ledger in Claude Code, answer one setup question, and get an Excel ledger of 108 plugins, skills and MCP servers across every agent on the machine. Then export it to CSV on demand.</desc>
+  <defs>
+    <style>
+      text { font-family: "Cascadia Code", Consolas, "SF Mono", Menlo, monospace; font-size: 15px; fill: #E2E8F0; white-space: pre; }
+      .p  { fill: #7DD3FC; }   /* prompt */
+      .ok { fill: #4ADE80; }   /* success */
+      .c  { fill: #FDBA74; }   /* Claude */
+      .m  { fill: #94A3B8; }   /* muted */
+      .hl { fill: #0F172A; }
+      .ui { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif; font-size: 13px; fill: #94A3B8; }
+    </style>
+  </defs>
+
+  <!-- 12s master clock: every line is shown relative to it, then everything resets. -->
+  <rect width="0" height="0"><animate id="loop" attributeName="x" values="0;0" dur="12s" begin="0s;loop.end"/></rect>
+
+  <rect width="900" height="440" rx="14" fill="#0B1220"/>
+  <rect width="900" height="36" rx="14" fill="#1E293B"/>
+  <rect y="22" width="900" height="14" fill="#1E293B"/>
+  <circle cx="22" cy="18" r="6" fill="#F87171"/><circle cx="42" cy="18" r="6" fill="#FBBF24"/><circle cx="62" cy="18" r="6" fill="#34D399"/>
+  <text class="ui" x="450" y="23" text-anchor="middle">Terminal · Claude Code</text>
+
+  <!-- Each line: hidden at loop start, shown at its moment. Typed lines also slide a cover off the text. -->
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+0.3s"/>
+    <text x="24" y="70"><tspan class="p">$ </tspan>claude plugin marketplace add miteshviras/plugin-ledger</text>
+    <rect x="44" y="54" width="560" height="22" fill="#0B1220"><set attributeName="x" to="44" begin="loop.begin"/><animate attributeName="x" from="44" to="620" begin="loop.begin+0.3s" dur="1.3s" fill="freeze"/></rect>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+1.8s"/>
+    <text x="24" y="94" class="ok">✔ Successfully added marketplace: plugin-ledger</text>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+2.2s"/>
+    <text x="24" y="126"><tspan class="p">$ </tspan>claude plugin install plugin-ledger@plugin-ledger</text>
+    <rect x="44" y="110" width="500" height="22" fill="#0B1220"><set attributeName="x" to="44" begin="loop.begin"/><animate attributeName="x" from="44" to="560" begin="loop.begin+2.2s" dur="1.1s" fill="freeze"/></rect>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+3.6s"/>
+    <text x="24" y="150" class="ok">✔ Successfully installed plugin: plugin-ledger@plugin-ledger (scope: user)</text>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+4.2s"/>
+    <text x="24" y="182"><tspan class="p">$ </tspan>claude   <tspan class="m"># new session</tspan></text>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+5s"/>
+    <text x="24" y="214"><tspan class="c">●</tspan> plugin-ledger isn't set up yet. Where should it keep your ledger?</text>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+5.6s"/>
+    <rect x="40" y="224" width="290" height="24" rx="5" fill="#1F3A5F"/>
+    <text x="48" y="241"><tspan class="p">❯</tspan> Claude folder (Recommended)</text>
+    <text x="350" y="241" class="m">A folder I choose    Google Drive</text>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+6.6s"/>
+    <text x="24" y="276"><tspan class="c">●</tspan> Wrote <tspan class="ok">~/.claude/plugin-ledger/plugin-ledger.xlsx</tspan></text>
+    <text x="40" y="298" class="m">108 plugins, skills and MCP servers across your agents · updates itself every session</text>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+7.8s"/>
+    <text x="24" y="338"><tspan class="p">&gt; </tspan>/plugin-ledger:export</text>
+    <rect x="44" y="322" width="200" height="22" fill="#0B1220"><set attributeName="x" to="44" begin="loop.begin"/><animate attributeName="x" from="44" to="250" begin="loop.begin+7.8s" dur="0.8s" fill="freeze"/></rect>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+8.9s"/>
+    <text x="24" y="362" class="m">  Format: CSV · Name: plugin-ledger · Folder: Downloads</text>
+  </g>
+  <g opacity="0"><set attributeName="opacity" to="0" begin="loop.begin"/><set attributeName="opacity" to="1" begin="loop.begin+9.6s"/>
+    <text x="24" y="386" class="ok">plugin-ledger: exported 108 rows to ~/Downloads/plugin-ledger.csv</text>
+  </g>
+
+  <!-- blinking cursor at the bottom -->
+  <rect x="24" y="404" width="9" height="17" fill="#7DD3FC"><animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/></rect>
+</svg>
