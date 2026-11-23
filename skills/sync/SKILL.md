@@ -28,6 +28,15 @@ If the file is missing, nothing is pending: say so in one line and stop.
    - If a row with the same **Plugin name** exists (a reinstall), update its Installed date, Description and Use case, set Status to `Installed`, and clear Removed date.
    - Otherwise append a row: name, type, link, installedAt as `YYYY-MM-DD`, description, useCase, `Installed`, empty Removed date, agent. Type is `plugin`, `skill` or `mcp`.
 5. For each name in `removed`: find its row, set Status to `Removed` and Removed date to the `detectedAt` date (`YYYY-MM-DD`). Never delete rows.
+5b. **Table style** (needs the Sheets connector; skip silently with Drive only). Read the first sheet's `properties` and `bandedRanges`. If it has no banded range yet, send one batch update for the first sheet (`sheetId` from that read, data range = all rows, columns A–I):
+   - `updateSheetProperties`: `gridProperties.frozenRowCount = 1`.
+   - `repeatCell` on row 1: bold, white text, background `#1F3A5F`, vertical middle, wrap.
+   - `addBanding` over A1:I(last row): header `#1F3A5F`, first band `#FFFFFF`, second band `#EEF3F8`.
+   - `setBasicFilter` over the same range.
+   - `repeatCell` on columns E–F (Description, Use case), rows 2+: `wrapStrategy WRAP`, vertical top.
+   - `updateDimensionProperties` column widths in pixels: A 260, B 80, C 260, D 110, E 360, F 420, G 100, H 110, I 150.
+   - `addConditionalFormatRule` on G2:G: text equals `Installed` → background `#D9F2E3`, text `#137333`; text equals `Removed` → background `#FCE1E1`, text `#A50E0E`.
+   If banding already exists, only make sure the banded range and the filter reach the last row (extend them with `updateBanding` / `setBasicFilter` when rows were appended). Read the sheet again and check the result.
 6. Only after every write succeeded, run `commitCommand` with the Bash tool. If anything failed, do not commit; the changes will be offered again next session.
 7. Tell the user in one line, e.g. "plugin-ledger: added 2, marked 1 removed in claude-plugin."
 
