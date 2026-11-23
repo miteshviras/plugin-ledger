@@ -8,6 +8,7 @@
   <img alt="Node 18+" src="https://img.shields.io/badge/node-%E2%89%A518-339933?style=flat-square&logo=node.js&logoColor=white">
   <img alt="zero dependencies" src="https://img.shields.io/badge/dependencies-0-64748B?style=flat-square">
   <img alt="6 agents" src="https://img.shields.io/badge/agents-6-7DD3FC?style=flat-square">
+  <a href="https://www.buymeacoffee.com/miteshviras329"><img alt="Buy me a coffee" src="https://img.shields.io/badge/buy%20me%20a%20coffee-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=black"></a>
 </p>
 
 <p align="center">
@@ -271,6 +272,11 @@ plugin-ledger/
 </details>
 
 ---
+
+<p align="center">
+  <b>Finding plugin-ledger useful?</b><br><br>
+  <a href="https://www.buymeacoffee.com/miteshviras329"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=miteshviras329&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="48"></a>
+</p>
 
 <p align="center">
   <img src="assets/logo.svg" alt="plugin-ledger logo" width="72"><br>
