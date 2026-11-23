@@ -6,7 +6,7 @@ Columns: Plugin name · Type · Link (marketplace) · Installed date · Descript
 
 ## Setup
 
-1. Turn on the **Google Drive** connector for Claude Code (claude.ai → Settings → Connectors, then make sure it is enabled for Code sessions).
+1. Turn on the **Google Drive** connector (creates the sheet) and the **Google Sheets** connector (adds rows and marks removals later) for Claude Code.
 2. Install the plugin:
    ```
    /plugin marketplace add <path-to-this-folder>

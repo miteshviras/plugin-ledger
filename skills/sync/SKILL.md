@@ -17,10 +17,11 @@ If the file is missing, nothing is pending: say so in one line and stop.
 ## Steps
 
 1. Read `pending.json`.
-2. Use the Google Drive connector (load the `google-workspace` skill first if it is available). If no Google Drive / Sheets tools exist in this session, tell the user to enable the Google Drive connector for Claude Code, and stop **without** running the commit command.
-3. Find the Google Sheet named exactly `claude-plugin` in the user's Drive. If there is none, create it with this header row on the first sheet:
-
-   | Plugin name | Type | Link (marketplace) | Installed date | Description | Use case | Status | Removed date |
+2. Load the `google-workspace` skill if it is available. With Drive `search_files`, look for a spreadsheet titled exactly `claude-plugin` (`title = 'claude-plugin' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`).
+3. **No sheet yet:** run `commitCommand` with `--commit` replaced by `--csv`, and pass its output unchanged to Drive `create_file` (`title: claude-plugin`, `contentMimeType: text/csv`). Drive converts it to a Google Sheet with columns
+   `Plugin name | Type | Link (marketplace) | Installed date | Description | Use case | Status | Removed date`.
+   Check the result with `read_file_content` (the table range should be `A1:H<rows+1>`), then go to step 6. The Drive connector alone is enough for this.
+   **Sheet exists:** steps 4–5 edit it in place and need the **Google Sheets** connector (tools to read values and append/update rows). Drive alone cannot edit an existing file. If there are no Sheets tools, tell the user to turn on the Google Sheets connector, and stop **without** committing. Never create a second `claude-plugin` file or trash the existing one.
 
 4. For each entry in `added`:
    - If a row with the same **Plugin name** exists (a reinstall), update its Installed date, Description and Use case, set Status to `Installed`, and clear Removed date.

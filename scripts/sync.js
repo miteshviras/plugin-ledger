@@ -3,6 +3,7 @@
 // Usage: sync.js            normal run (hook)
 //        sync.js --dry-run  print what changed, write nothing
 //        sync.js --commit   mark pending.json as written to the sheet
+//        sync.js --csv      print pending additions as CSV (for creating the sheet)
 //        sync.js --test     self-test on a fixture
 const fs = require('fs');
 const path = require('path');
@@ -25,7 +26,7 @@ function skillDescription(file) {
     for (const l of lines.slice(i + 1)) { if (/^\s+\S/.test(l) || l.trim() === '') block.push(l.trim()); else break; }
     return block.join(' ').trim();
   }
-  return v.replace(/^(['"])(.*)\1$/, '$2');
+  return v.replace(/^(['"])(.*)\1$/, '$2').replace(/\\"/g, '"');
 }
 
 // Frontmatter `name:`, else the folder name (a root-level SKILL.md sits in a version folder like 3.1.0).
@@ -39,7 +40,9 @@ function skillName(file) {
 // The "when to use it" part of a description, else the whole description.
 function useCaseOf(desc) {
   const m = desc.match(/\b(Use (?:this|it|when|for|on|to)\b|Activate for|Triggers? (?:on|include))[\s\S]*/i);
-  return (m ? m[0] : desc).trim();
+  // First sentence only, so a plugin with 30 skills still fits in a readable cell.
+  const s = (m ? m[0] : desc).trim().split(/(?<=\.)\s/)[0];
+  return s.length > 200 ? s.slice(0, 199) + "…" : s;
 }
 
 function findSkillFiles(dir, depth = 3) {
@@ -48,7 +51,7 @@ function findSkillFiles(dir, depth = 3) {
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
   for (const e of entries) {
     if (e.isFile() && e.name === 'SKILL.md') out.push(path.join(dir, e.name));
-    else if (e.isDirectory() && depth > 0 && !['node_modules', '.git'].includes(e.name)) out.push(...findSkillFiles(path.join(dir, e.name), depth - 1));
+    else if (e.isDirectory() && depth > 0 && e.name !== 'node_modules' && !e.name.startsWith('.')) out.push(...findSkillFiles(path.join(dir, e.name), depth - 1));
   }
   return out;
 }
@@ -73,7 +76,9 @@ function collect(home) {
     if (!inst) continue;
     const market = key.split('@')[1];
     const manifest = readJson(path.join(inst.installPath, '.claude-plugin', 'plugin.json'), {});
-    const skills = findSkillFiles(inst.installPath).map(f => ({ name: skillName(f), desc: skillDescription(f) }));
+    // Hidden dirs (.claude, .cursor-plugin) hold the repo's own dev skills or mirrors; skip them and dedupe by name.
+    const byName = new Map(findSkillFiles(inst.installPath).map(f => [skillName(f), skillDescription(f)]).reverse());
+    const skills = [...byName].reverse().map(([name, desc]) => ({ name, desc }));
     const useCase = skills.filter(s => s.desc).map(s => `${s.name}: ${useCaseOf(s.desc)}`).join('\n');
     rows.push({
       name: key,
@@ -105,6 +110,14 @@ function collect(home) {
   return rows;
 }
 
+const HEADER = ['Plugin name', 'Type', 'Link (marketplace)', 'Installed date', 'Description', 'Use case', 'Status', 'Removed date'];
+// Leading = + - @ would be parsed as a formula on import, so prefix a space.
+const cell = v => { const s = String(v ?? '').replace(/^([=+\-@])/, ' $1'); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+function toCsv(rows) {
+  const lines = rows.map(r => [r.name, r.type, r.link, (r.installedAt || '').slice(0, 10), r.description, r.useCase, 'Installed', ''].map(cell).join(','));
+  return [HEADER.join(','), ...lines].join('\r\n') + '\r\n';
+}
+
 // What changed since the last sync: rows to add, names to mark removed.
 function diff(rows, synced) {
   const now = new Set(rows.map(r => r.name));
@@ -117,6 +130,12 @@ function main() {
   const syncedFile = path.join(dir, 'synced.json'); // names currently "Installed" in the sheet
   const pendingFile = path.join(dir, 'pending.json');
   const synced = readJson(syncedFile, []);
+
+  if (process.argv.includes('--csv')) {
+    // Pending additions as a CSV that Drive converts into the claude-plugin sheet on upload.
+    const p = readJson(pendingFile, { added: [] });
+    return process.stdout.write(toCsv(p.added));
+  }
 
   if (process.argv.includes('--commit')) {
     // Claude runs this only after the sheet update succeeded.
@@ -169,6 +188,7 @@ function selfTest() {
   const d = diff(rows, ['demo@m', 'gone@m']);
   assert.deepStrictEqual(d.added.map(r => r.name), ['skill:solo']);
   assert.deepStrictEqual(d.removed, ['gone@m']);
+  assert.strictEqual(toCsv([{ name: 'a', description: 'x, "y"\nz', useCase: '=1' }]).split('\r\n')[1], 'a,,,,"x, ""y""\nz", =1,Installed,');
   assert.strictEqual(marketplaceLink({ url: 'https://x.com/a/b.git' }), 'https://x.com/a/b');
   fs.rmSync(home, { recursive: true, force: true });
   console.log('self-test passed');
