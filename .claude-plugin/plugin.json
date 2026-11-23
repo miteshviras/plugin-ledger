@@ -1,7 +1,13 @@
 {
   "name": "plugin-ledger",
-  "description": "Logs every plugin, skill and MCP server installed in any coding agent (Claude Code, Antigravity, Gemini CLI, opencode, Copilot, Codex) to a local Excel/CSV/JSON file or a Google Sheet, including removals.",
+  "description": "Logs every plugin, skill and MCP server installed in any coding agent (Claude Code, Antigravity, Gemini CLI, opencode, Copilot, Codex) to an Excel file or a Google Sheet, including removals. Export to CSV or JSON on demand.",
   "version": "1.1.1",
+  "author": {
+    "name": "miteshviras",
+    "url": "https://github.com/miteshviras"
+  },
+  "homepage": "https://github.com/miteshviras/plugin-ledger",
+  "repository": "https://github.com/miteshviras/plugin-ledger",
   "license": "MIT",
-  "keywords": ["inventory", "google-sheets", "plugins", "skills"]
+  "keywords": ["inventory", "google-sheets", "excel", "plugins", "skills", "mcp"]
 }

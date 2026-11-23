@@ -1,12 +1,21 @@
 {
   "name": "plugin-ledger",
-  "owner": { "name": "plugin-ledger" },
+  "owner": {
+    "name": "miteshviras",
+    "url": "https://github.com/miteshviras"
+  },
   "description": "Install plugin-ledger as a Claude Code plugin.",
   "plugins": [
     {
       "name": "plugin-ledger",
       "source": "./",
-      "description": "Logs every plugin and skill you install to a Google Sheet."
+      "description": "Logs every plugin, skill and MCP server from every coding agent to an Excel file or a Google Sheet, including removals.",
+      "author": {
+        "name": "miteshviras",
+        "url": "https://github.com/miteshviras"
+      },
+      "homepage": "https://github.com/miteshviras/plugin-ledger",
+      "category": "productivity"
     }
   ]
 }
