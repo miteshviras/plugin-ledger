@@ -38,6 +38,7 @@ If the file is missing, nothing is pending: say so in one line and stop.
    - `repeatCell` on columns E–F (Description, Use case), rows 2+: `wrapStrategy WRAP`, vertical top.
    - `updateDimensionProperties` column widths in pixels: A 260, B 80, C 260, D 110, E 360, F 420, G 100, H 110, I 150.
    - `addConditionalFormatRule` on G2:G: text equals `Installed` → background `#D9F2E3`, text `#137333`; text equals `Removed` → background `#FCE1E1`, text `#A50E0E`.
+   Google sometimes turns a fresh CSV import into a native table a few seconds after creating it, with its own banding and filter. If `addBanding` fails with "already has alternating background colors", restyle that banded range with `updateBanding` (`fields: "rowProperties"`) and drop `setBasicFilter` (the table has its own filter). Send the rest of the batch again; a failed batch applies nothing.
    If banding already exists, only make sure the banded range and the filter reach the last row (extend them with `updateBanding` / `setBasicFilter` when rows were appended). Read the sheet again and check the result.
 6. Only after every write succeeded, run `commitCommand` with the Bash tool. If anything failed, do not commit; the changes will be offered again next session.
 7. Tell the user in one line, e.g. "plugin-ledger: added 2, marked 1 removed in <sheetName>."

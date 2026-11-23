@@ -307,6 +307,12 @@ function main() {
     const cfg = destination === 'drive' ? { destination, name } : { destination, name, path: folder };
     fs.mkdirSync(dir, { recursive: true });
     if (destination === 'local') fs.mkdirSync(folder, { recursive: true });
+    // synced.json/pending.json describe one particular sheet. A new destination or sheet name must start
+    // fresh, or the new sheet would never be created; keep the old state beside it rather than deleting it.
+    const old = readJson(configFile, null), oldSheet = fs.existsSync(syncedFile) ? (old?.name || 'claude-plugin') : null;
+    if (oldSheet && (destination !== 'drive' || name !== oldSheet || (old && old.destination !== 'drive'))) {
+      for (const f of [syncedFile, pendingFile]) if (fs.existsSync(f)) fs.renameSync(f, f.replace(/\.json$/, `.${oldSheet}.${Date.now()}.json`));
+    }
     fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2));
     return console.log(`plugin-ledger: saved ${JSON.stringify(cfg)}`);
   }
