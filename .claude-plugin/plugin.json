@@ -1,0 +1,7 @@
+{
+  "name": "plugin-ledger",
+  "description": "Logs every Claude Code plugin and skill you install to a Google Sheet: name, marketplace link, install date, description and use case.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "keywords": ["inventory", "google-sheets", "plugins", "skills"]
+}

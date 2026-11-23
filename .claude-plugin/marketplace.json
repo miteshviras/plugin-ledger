@@ -1,0 +1,12 @@
+{
+  "name": "plugin-ledger",
+  "owner": { "name": "plugin-ledger" },
+  "description": "Install plugin-ledger as a Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "plugin-ledger",
+      "source": "./",
+      "description": "Logs every plugin and skill you install to a Google Sheet."
+    }
+  ]
+}
